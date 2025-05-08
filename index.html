@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lounastutka - Lunch Places</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet.markercluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore-compat.js"></script>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet.markercluster JavaScript -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #166088;
+            --accent-color: #4fc3f7;
+            --background-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --light-text: #6c757d;
+            --border-color: #e0e0e0;
+            --success-color: #4caf50;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            margin: 0 auto;
+            max-width: 1200px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .today-date {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .filter-btn {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        #blacklist-view-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+
+        #blacklist-view-container h2 {
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+
+        #blacklist-items {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #blacklist-items li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #blacklist-items li:last-child {
+            border-bottom: none;
+        }
+
+        .remove-blacklist-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .remove-blacklist-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .link-btn {
+            background-color: #6c757d; /* Grey */
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .link-btn:hover {
+            background-color: #5a6268;
+        }
+        .link-btn i {
+            margin-right: 5px;
+        }
+
+        .restaurant-card.linking-source {
+            border: 2px solid #007bff; /* Blue */
+            background-color: #e7f3ff; /* Lighter blue */
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+        }
+        .restaurant-card.linking-source .restaurant-name {
+            font-weight: bold;
+        }
+
+        .restaurant-card.linking-target-mode {
+            border: 2px dashed #28a745; /* Green */
+            /* cursor: pointer; is already in the CSS for the card if it has an onclick */
+            opacity: 0.85;
+            transition: opacity 0.2s ease, background-color 0.2s ease;
+        }
+        .restaurant-card.linking-target-mode:hover {
+            background-color: #e9f5e9; /* Lighter green */
+            opacity: 1;
+        }
+
+        .linking-source .link-btn.cancel-link-btn {
+            background-color: #dc3545; /* Red */
+        }
+        .linking-source .link-btn.cancel-link-btn:hover {
+            background-color: #c82333;
+        }
+
+        .linking-target-mode .link-btn.select-target-btn {
+            background-color: #28a745; /* Green */
+        }
+        .linking-target-mode .link-btn.select-target-btn:hover {
+            background-color: #218838;
+        }
+
+        .restaurant-card.linking-source {
+            border: 2px solid var(--primary-color); /* Blue border for source */
+            background-color: #e6f0ff; /* Light blue background */
+        }
+
+        .restaurant-card.linking-target-mode {
+            border: 2px dashed var(--success-color); /* Green dashed border for targets */
+            cursor: pointer;
+        }
+
+        .restaurant-card.linking-target-mode:hover {
+            background-color: #e6ffe6; /* Light green background on hover */
+        }
+
+        .sort-options {
+            display: flex;
+            gap: 15px;
+            margin-left: auto;
+        }
+
+        #restaurants-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .restaurant-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            position: relative; /* Needed for absolute positioning of children */
+            padding-bottom: 50px; /* Increased padding to prevent overlap with buttons */
+        }
+
+        .restaurant-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Add this new style for favorite restaurants */
+        .favorite-restaurant {
+            border: 3px solid gold;
+            box-shadow: 0 0 10px gold, var(--shadow); /* Add glow effect */
+            padding-bottom: 50px; /* Match the card padding */
+        }
+
+        .favorite-toggle {
+            position: absolute;
+            bottom: 10px; /* Adjust as needed */
+            left: 15px;  /* Adjust as needed */
+            z-index: 10; /* Ensure it's above other elements if needed */
+        }
+
+        .favorite-btn {
+            background: none;
+            border: none;
+            color: #ccc; /* Default color for non-favorite */
+            font-size: 1.5em; /* Adjust size */
+            cursor: pointer;
+            padding: 0;
+            line-height: 1; /* Prevent extra spacing */
+        }
+
+        .favorite-btn.active {
+            color: #e74c3c; /* Red color for favorite */
+        }
+
+        .favorite-btn:hover {
+            color: #e74c3c; /* Hover color */
+        }
+
+        .restaurant-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .restaurant-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .restaurant-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .restaurant-distance, .restaurant-time {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .restaurant-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .restaurant-body {
+            padding: 15px;
+        }
+
+        .restaurant-foods {
+            list-style-type: none;
+        }
+
+        .food-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .food-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .food-name {
+            font-weight: 500;
+        }
+
+        .food-price {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .no-foods {
+            color: var(--light-text);
+            font-style: italic;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .vote-section {
+            position: absolute;
+            bottom: 10px;
+            right: 15px; /* Position vote button to the right */
+            z-index: 10; /* Ensure it's above other elements if needed */
+        }
+
+        .vote-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .vote-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .blacklist-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: #dc3545; /* Red color for blacklist */
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.8em; /* Smaller font size */
+        }
+
+        .blacklist-btn:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
+
+        .card-actions {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            display: flex;
+            gap: 10px; /* Space between buttons */
+            align-items: center;
+            z-index: 10; /* Ensure it's above other elements */
+        }
+
+        @media (max-width: 768px) {
+            #restaurants-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-container, .filter-container {
+                flex-direction: column;
+            }
+            
+            .sort-options {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+
+        .loader {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.5rem;
+            color: var(--light-text);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--light-text);
+            font-size: 1.2rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Map view styles */
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        
+        #map-container {
+            height: 70vh;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-top: 20px;
+            display: none;
+            position: relative;
+        }
+        
+        #toggle-labels {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 500;
+            background-color: white;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            box-shadow: var(--shadow);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        #toggle-labels.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px;
+        }
+        
+        .marker-popup {
+            min-width: 200px;
+        }
+        
+        .marker-popup h3 {
+            margin-bottom: 5px;
+            color: var(--secondary-color);
+        }
+        
+        .marker-popup p {
+            margin: 2px 0;
+            font-size: 0.9rem;
+        }
+        
+        .marker-popup .badges {
+            margin-top: 5px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .marker-popup .badge {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+        
+        /* Name labels on map styles */
+        .restaurant-label {
+            background-color: transparent;
+            border: none;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-weight: normal;
+            white-space: nowrap;
+            display: none;
+        }
+        
+        .show-labels .restaurant-label {
+            display: block;
+        }
+        
+        /* Override Leaflet's default tooltip styles to remove background */
+        .leaflet-tooltip {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-weight: bold !important;
+        }
+        
+        /* Yhteiset tyylit sekä tooltip-teksteille että klustereiden nimiä varten */
+        .map-text {
+            font-weight: bold !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            /* Text-shadow määritetään JavaScriptissa dynaamisesti */
+        }
+        
+        /* No-bg-names luokka klusterien nimille */
+        .no-bg-names li {
+            padding: 0;
+            margin: 0;
+            font-weight: bold !important;
+            background: none !important;
+            /* Text-shadow määritetään JavaScriptissa dynaamisesti */
+        }
+        
+        /* Cluster restaurants list styles */
+        .cluster-restaurants-list {
+            position: absolute;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            border-radius: 8px;
+            padding: 10px;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 999;
+            pointer-events: auto;
+        }
+        
+        .cluster-restaurants-list ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .cluster-restaurants-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .cluster-restaurants-list li:last-child {
+            border-bottom: none;
+        }
+        
+        /* Custom marker cluster styles with names */
+        .marker-cluster.show-names {
+            background: transparent !important;
+            overflow: visible !important;
+        }
+        
+        .marker-dot {
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        }
+        
+        .cluster-with-names {
+            position: relative;
+        }
+        
+        .cluster-names {
+            background-color: white;
+            padding: 6px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            position: absolute;
+            right: 40px;
+            top: 5px;
+            width: 180px;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: right;
+        }
+        
+        .cluster-names div {
+            padding: 1px 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: right;
+        }
+        
+        /* Override Leaflet's marker-cluster styles when showing names */
+        .marker-cluster.show-names div {
+            background-color: transparent !important;
+            color: inherit !important;
+            width: auto !important;
+            height: auto !important;
+            line-height: normal !important;
+            margin: 0 !important;
+        }
+        
+        /* Cluster names overlay style */
+        .marker-cluster.with-names {
+            overflow: visible !important;
+            z-index: 900 !important;
+        }
+        
+        .cluster-names-overlay {
+            position: absolute;
+            text-align: right;
+            width: 180px;
+            right: 35px;
+            top: -5px;
+            font-size: 10px;
+            line-height: 1.1;
+        }
+        
+        .cluster-names-overlay div {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #000;
+        }
+        
+        /* Cluster with single circle and names list that overlays the circle */
+        .cluster-container {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .cluster-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 900;
+        }
+        
+        .cluster-names-list {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 150px;
+            text-align: center;
+            padding-top: 15px;
+            z-index: 899;
+        }
+        
+        .cluster-names-list div {
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: black;
+            padding: 1px 0;
+        }
+        
+        /* Cluster text overlay styles */
+        .marker-cluster.with-text {
+            background: transparent !important;
+        }
+        
+        .text-cluster {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .text-cluster-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.9);
+        }
+        
+        .text-cluster-names {
+            position: absolute;
+            left: 20px;
+            top: 0;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: left;
+            min-width: 200px;
+            width: auto;
+            white-space: nowrap;
+            z-index: -1;
+        }
+        
+        /* Cluster display with circle marker and text with no background */
+        .marker-cluster.with-names-list {
+            background: transparent !important;
+            overflow: visible !important;
+        }
+        
+        .cluster-display {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .cluster-circle-marker {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(74, 111, 165, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .cluster-text-list {
+            position: absolute;
+            left: 20px;
+            top: 5px;
+            background: transparent !important;
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: left;
+            width: auto;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: -1;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Pure style for clusters with text without any background */
+        .marker-cluster.pure-style {
+            overflow: visible !important;
+        }
+        
+        .pure-cluster {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .pure-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .pure-names {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: center;
+            padding-top: 40px;
+            color: black;
+            white-space: nowrap;
+            background: transparent !important;
+            pointer-events: none;
+        }
+        
+        /* Final style for cluster with names */
+        .marker-cluster.final-style {
+            overflow: visible !important;
+        }
+        
+        .standard-cluster {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .no-bg-names {
+            position: absolute;
+            left: 40px;
+            top: 10px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            width: auto;
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            pointer-events: none;
+            background: none !important;
+            border: none !important;
+        }
+        
+        .no-bg-names li {
+            padding: 0;
+            margin: 0;
+            background: none !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div>
+                <h1>Lounastutka</h1>
+                <div class="today-date" id="today-date"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search restaurants...">
+        </div>
+
+        <div class="filter-container">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="has-menu">Has Menu</button>
+            <button class="filter-btn" data-filter="favorites">Favorites</button>
+            <button class="filter-btn" id="toggle-blacklist-view"><i class="fas fa-list-alt"></i> Show Blacklist</button>
+            <button class="filter-btn" id="toggle-link-view"><i class="fas fa-link"></i> Manage Links</button> 
+            <button class="filter-btn" id="toggle-custom-view"><i class="fas fa-cog"></i> Manage Custom</button>
+            <div class="view-toggle">
+                <button class="filter-btn active" data-view="list"><i class="fas fa-list"></i> List</button>
+                <button class="filter-btn" data-view="map"><i class="fas fa-map-marked-alt"></i> Map</button>
+            </div>
+        </div>
+
+        <div id="map-container">
+            <button class="filter-btn" id="toggle-labels"><i class="fas fa-tag"></i> Show Names</button>
+            <div id="map"></div>
+        </div>
+
+        <div id="restaurants-container">
+            <div class="loader">Loading restaurants...</div>
+        </div>
+
+        <div id="blacklist-view-container">
+            <h2>Blacklisted Restaurants</h2>
+            <ul id="blacklist-items">
+            </ul>
+        </div>
+
+        <div id="link-view-container" style="display: none; padding: 20px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">Manage Linked Restaurants</h2>
+            <div id="linked-pairs-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px;">
+                <p>Loading links...</p>
+            </div>
+        </div>
+
+        <div id="custom-view-container" style="display: none; padding: 20px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">Manage Custom Configurations</h2>
+            <button id="add-custom-config-btn" class="filter-btn" style="margin-bottom: 15px; background-color: #28a745; color: white;">
+                <i class="fas fa-plus-circle"></i> Add New Custom Config
+            </button>
+            <div id="custom-config-form-section" style="display:none; margin-bottom: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
+                <h3 id="custom-form-title">Add New Configuration</h3>
+                <form id="custom-config-form">
+                    <input type="hidden" id="custom-config-original-name">
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-restaurant-name">Restaurant Name (ID):</label>
+                        <input type="text" id="custom-restaurant-name" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-type">Type (e.g., html, json):</label>
+                        <input type="text" id="custom-type" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-url">URL:</label>
+                        <input type="url" id="custom-url" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-foods">Foods Selector/Path:</label>
+                        <input type="text" id="custom-foods" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-categories">Categories (comma-separated):</label>
+                        <input type="text" id="custom-categories" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-location">Location (latitude,longitude):</label>
+                        <input type="text" id="custom-location" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label for="custom-distance">Distance (meters, empty for unknown):</label>
+                        <input type="number" id="custom-distance" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <input type="checkbox" id="custom-epassi" style="margin-right: 5px;">
+                        <label for="custom-epassi">ePassi</label>
+                    </div>
+                    <button type="submit" class="filter-btn" style="background-color: #007bff; color: white; margin-right: 10px;">Save Configuration</button>
+                    <button type="button" id="cancel-custom-form-btn" class="filter-btn" style="background-color: #6c757d; color: white;">Cancel</button>
+                </form>
+            </div>
+            <div id="custom-configs-list">
+                <p>Loading configurations...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const firebaseConfig = {
+                apiKey: "AIzaSyD7Mw4GGXaLZHhI8o1L1C9knPR3sI8Uvx0",
+                authDomain: "lounastutka.firebaseapp.com",
+                projectId: "lounastutka",
+                storageBucket: "lounastutka.appspot.com",
+                messagingSenderId: "284799231067",
+                appId: "1:284799231067:web:9d4efa9ebfe6f1016b14c2"
+            };
+
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            
+            function showToast(message, duration = 3000) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, duration);
+            }
+
+            const today = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('today-date').textContent = today.toLocaleDateString('fi-FI', options);
+
+            let restaurants = [];
+            let filteredRestaurants = [];
+            let currentFilter = 'all';
+            let currentSort = 'distance';
+            let searchQuery = '';
+            let currentView = 'list';
+            let previousView = 'list'; // Added to track view before blacklist/link
+            let map = null;
+            let markers = [];
+            let markerCluster = null;
+            let blacklist = [];
+            let linkSourceRestaurantName = null; // Variable to store the name of the source restaurant for linking
+
+            function escapeJSString(str) {
+                if (typeof str !== 'string') return '';
+                // Escape single quotes, double quotes, backslashes, and newlines for safety in JS strings
+                return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+            }
+
+            function initiateLink(sourceName) {
+                if (linkSourceRestaurantName === sourceName) {
+                    // This case should ideally be handled by the button changing to "Cancel"
+                    // but as a fallback, treat re-clicking source "Link" as cancel.
+                    cancelLink();
+                } else {
+                    linkSourceRestaurantName = sourceName;
+                    showToast(`Linking '${sourceName}'. Select another restaurant to link with.`, 4000);
+                    renderRestaurants();
+                }
+            }
+
+            function selectLinkTarget(targetName) {
+                if (!linkSourceRestaurantName) {
+                    showToast("Error: No source restaurant selected for linking.", 4000);
+                    console.warn("selectLinkTarget called without a source restaurant.");
+                    return;
+                }
+                if (linkSourceRestaurantName === targetName) {
+                    showToast("Cannot link a restaurant to itself.", 4000);
+                    return;
+                }
+
+                const source = linkSourceRestaurantName; // Keep a copy before resetting
+                const mapDocRef = db.collection('map').doc('map');
+
+                mapDocRef.set({
+                    [source]: targetName // Using computed property name for the key
+                }, { merge: true })
+                .then(() => {
+                    showToast(`'${source}' linked with '${targetName}'.`, 3000);
+                    linkSourceRestaurantName = null;
+                    renderRestaurants();
+                })
+                .catch((error) => {
+                    console.error("Error linking restaurants: ", error);
+                    showToast(`Failed to link: ${error.message}`, 5000);
+                    linkSourceRestaurantName = null; 
+                    renderRestaurants(); // Reset UI even on failure
+                });
+            }
+
+            function cancelLink() {
+                if (linkSourceRestaurantName) {
+                    showToast(`Linking cancelled for '${linkSourceRestaurantName}'.`, 3000);
+                    linkSourceRestaurantName = null;
+                    renderRestaurants();
+                } else {
+                    // If called when no link is active, ensure state is clean and UI is consistent
+                    linkSourceRestaurantName = null;
+                    renderRestaurants();
+                }
+            }
+
+            // Attach linking functions to window object to make them accessible from inline HTML event handlers
+            window.initiateLink = initiateLink;
+            window.selectLinkTarget = selectLinkTarget;
+            window.cancelLink = cancelLink;
+
+            function renderLinkView() {
+                const listContainer = document.getElementById('linked-pairs-list');
+                if (!listContainer) {
+                    console.error('Link view list container not found.');
+                    return;
+                }
+                listContainer.innerHTML = '<p>Loading links...</p>'; // Clear previous content
+
+                const mapDocRef = db.collection('map').doc('map');
+                mapDocRef.get().then((doc) => {
+                    if (doc.exists) {
+                        const links = doc.data();
+                        if (Object.keys(links).length === 0) {
+                            listContainer.innerHTML = '<p style="text-align: center; color: #555;">No restaurant links found.</p>';
+                            return;
+                        }
+                        listContainer.innerHTML = ''; // Clear "Loading..." message
+
+                        for (const sourceName in links) {
+                            if (links.hasOwnProperty(sourceName)) {
+                                const targetName = links[sourceName];
+                                
+                                const pairDiv = document.createElement('div');
+                                pairDiv.style.border = '1px solid #ddd';
+                                pairDiv.style.padding = '15px';
+                                pairDiv.style.borderRadius = '8px';
+                                pairDiv.style.backgroundColor = '#f9f9f9';
+                                pairDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                                pairDiv.style.display = 'flex';
+                                pairDiv.style.flexDirection = 'column';
+                                pairDiv.style.gap = '10px';
+
+                                const linkText = document.createElement('p');
+                                linkText.style.margin = '0';
+                                linkText.style.fontSize = '1em';
+                                linkText.innerHTML = `<strong>${escapeJSString(sourceName)}</strong> <i class="fas fa-long-arrow-alt-right"></i> <strong>${escapeJSString(targetName)}</strong>`;
+                                
+                                const deleteButton = document.createElement('button');
+                                deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Delete Link';
+                                deleteButton.style.padding = '8px 12px';
+                                deleteButton.style.backgroundColor = '#dc3545';
+                                deleteButton.style.color = 'white';
+                                deleteButton.style.border = 'none';
+                                deleteButton.style.borderRadius = '4px';
+                                deleteButton.style.cursor = 'pointer';
+                                deleteButton.style.alignSelf = 'flex-start';
+                                deleteButton.onclick = () => deleteLinkPair(sourceName);
+                                
+                                pairDiv.appendChild(linkText);
+                                pairDiv.appendChild(deleteButton);
+                                listContainer.appendChild(pairDiv);
+                            }
+                        }
+                    } else {
+                        listContainer.innerHTML = '<p style="text-align: center; color: #555;">No links document found. Create some links first!</p>';
+                    }
+                }).catch((error) => {
+                    console.error("Error fetching links: ", error);
+                    listContainer.innerHTML = '<p style="color: red; text-align: center;">Error loading links. Please try again.</p>';
+                    showToast('Error fetching links: ' + error.message, 5000);
+                });
+            }
+
+            function deleteLinkPair(sourceRestaurantName) {
+                if (!sourceRestaurantName) {
+                    showToast('Error: Source restaurant name is missing for deletion.', 4000);
+                    return;
+                }
+                if (!confirm(`Are you sure you want to delete the link for "${sourceRestaurantName}"?`)) {
+                    return;
+                }
+
+                const mapDocRef = db.collection('map').doc('map');
+                const updateData = {};
+                updateData[sourceRestaurantName] = firebase.firestore.FieldValue.delete();
+
+                mapDocRef.update(updateData)
+                .then(() => {
+                    showToast(`Link for '${sourceRestaurantName}' deleted successfully.`, 3000);
+                    renderLinkView(); // Refresh the list
+                    // If the main restaurant list is visible and might show link buttons, refresh it too
+                    if (currentView !== 'link' && document.getElementById('restaurants-container').style.display !== 'none') {
+                        renderRestaurants(); 
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error deleting link: ", error);
+                    showToast(`Failed to delete link for '${sourceRestaurantName}': ${error.message}`, 5000);
+                });
+            }
+            window.deleteLinkPair = deleteLinkPair; // Make it accessible from inline HTML
+
+            // Function to control view visibility and button states
+            function showView(viewToShow) {
+                const restaurantsContainer = document.getElementById('restaurants-container');
+                const mapContainer = document.getElementById('map-container');
+                const blacklistContainer = document.getElementById('blacklist-view-container');
+                const linkViewContainer = document.getElementById('link-view-container');
+                const customViewContainer = document.getElementById('custom-view-container'); // New
+
+                const listBtn = document.querySelector('.filter-btn[data-view="list"]');
+                const mapBtn = document.querySelector('.filter-btn[data-view="map"]');
+                const blacklistBtn = document.getElementById('toggle-blacklist-view');
+                const linkBtn = document.getElementById('toggle-link-view');
+                const customBtn = document.getElementById('toggle-custom-view'); // New
+
+                // Hide all view containers first
+                restaurantsContainer.style.display = 'none';
+                mapContainer.style.display = 'none';
+                blacklistContainer.style.display = 'none';
+                linkViewContainer.style.display = 'none';
+                customViewContainer.style.display = 'none'; // New
+                document.getElementById('custom-config-form-section').style.display = 'none'; // Hide form by default
+
+
+                // Reset all view-related button states
+                listBtn.classList.remove('active');
+                mapBtn.classList.remove('active');
+                blacklistBtn.classList.remove('active');
+                blacklistBtn.innerHTML = '<i class="fas fa-list-alt"></i> Show Blacklist';
+                linkBtn.classList.remove('active');
+                linkBtn.innerHTML = '<i class="fas fa-link"></i> Manage Links';
+                customBtn.classList.remove('active'); // New
+                customBtn.innerHTML = '<i class="fas fa-cog"></i> Manage Custom'; // New
+
+
+                currentView = viewToShow; // Set current view
+
+                // Activate the appropriate view and button
+                switch (viewToShow) {
+                    case 'list':
+                        restaurantsContainer.style.display = 'grid';
+                        listBtn.classList.add('active');
+                        previousView = 'list'; // Update previousView when a main view is selected
+                        break;
+                    case 'map':
+                        mapContainer.style.display = 'block';
+                        mapBtn.classList.add('active');
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                        previousView = 'map'; // Update previousView when a main view is selected
+                        break;
+                    case 'blacklist':
+                        blacklistContainer.style.display = 'block';
+                        blacklistBtn.classList.add('active');
+                        blacklistBtn.innerHTML = '<i class="fas fa-times-circle"></i> Hide Blacklist';
+                        // Keep the underlying main view button active
+                        if (previousView === 'list') listBtn.classList.add('active');
+                        else if (previousView === 'map') mapBtn.classList.add('active');
+                        else listBtn.classList.add('active'); // Default fallback
+                        renderBlacklistView();
+                        break;
+                    case 'link':
+                        linkViewContainer.style.display = 'block';
+                        linkBtn.classList.add('active');
+                        linkBtn.innerHTML = '<i class="fas fa-times-circle"></i> Hide Links';
+                        // Keep the underlying main view button active
+                        if (previousView === 'list') listBtn.classList.add('active');
+                        else if (previousView === 'map') mapBtn.classList.add('active');
+                        else listBtn.classList.add('active'); // Default fallback
+                        renderLinkView();
+                        break;
+                    case 'custom': // New case
+                        customViewContainer.style.display = 'block';
+                        customBtn.classList.add('active');
+                        customBtn.innerHTML = '<i class="fas fa-times-circle"></i> Hide Custom';
+                        // Keep the underlying main view button active
+                        if (previousView === 'list') listBtn.classList.add('active');
+                        else if (previousView === 'map') mapBtn.classList.add('active');
+                        else listBtn.classList.add('active'); // Default fallback
+                        renderCustomConfigsView();
+                        break;
+                }
+            }
+
+            function addRestaurantMarkers() {
+                if (markerCluster) {
+                    map.removeLayer(markerCluster);
+                    markerCluster = null;
+                }
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+
+                markerCluster = L.markerClusterGroup({
+                    iconCreateFunction: function(cluster) {
+                        const childCount = cluster.getChildCount();
+                        const markersInCluster = cluster.getAllChildMarkers();
+                        const restaurantsInCluster = markersInCluster
+                            .map(marker => marker.restaurantName)
+                            .filter(name => name); 
+
+                        let clusterHash = 0;
+                        const clusterContent = restaurantsInCluster.join('');
+                        for (let i = 0; i < clusterContent.length; i++) {
+                            clusterHash = ((clusterHash << 5) - clusterHash) + clusterContent.charCodeAt(i);
+                            clusterHash |= 0; 
+                        }
+                        
+                        const hue = Math.abs(clusterHash % 360);
+                        const backgroundColor = `hsla(${hue}, 100%, 40%, 1)`; 
+                        const textColor = hue > 40 && hue < 200 ? '#000' : '#fff'; 
+                        const borderColor = '#fff';
+                        
+                        const isShowingLabels = document.getElementById('toggle-labels') && 
+                                               document.getElementById('toggle-labels').classList.contains('active');
+                        
+                        let iconHtml;
+                        if (isShowingLabels && restaurantsInCluster.length > 0) {
+                            iconHtml = `
+                                <div class="standard-cluster" style="background-color: ${backgroundColor}; color: ${textColor};"><span>${childCount}</span></div>
+                                <ul class="no-bg-names">${restaurantsInCluster.map(name => `<li style="color: ${backgroundColor}; text-shadow: -1px -1px 0 ${borderColor}, 1px -1px 0 ${borderColor}, -1px 1px 0 ${borderColor}, 1px 1px 0 ${borderColor};">${name}</li>`).join('')}</ul>
+                            `;
+                        } else {
+                            iconHtml = `<div style="background-color: ${backgroundColor}; color: ${textColor}; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><span>${childCount}</span></div>`;
+                        }
+                        
+                        return new L.DivIcon({ 
+                            html: iconHtml, 
+                            className: 'marker-cluster' + (isShowingLabels ? ' final-style' : ''),
+                            iconSize: new L.Point(40, 40),
+                            iconAnchor: [20, 20] 
+                        });
+                    },
+                    spiderfyOnMaxZoom: false
+                });
+
+                filteredRestaurants.forEach(restaurant => {
+                    if (restaurant.location && Array.isArray(restaurant.location) && restaurant.location.length === 2) {
+                        const lat = parseFloat(restaurant.location[0]);
+                        const lng = parseFloat(restaurant.location[1]);
+
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            let nameHash = 0;
+                            const restaurantName = restaurant.name || '';
+                            for (let i = 0; i < restaurantName.length; i++) {
+                                nameHash = ((nameHash << 5) - nameHash) + restaurantName.charCodeAt(i);
+                                nameHash |= 0; 
+                            }
+                            
+                            const hue = Math.abs(nameHash % 360);
+                            const backgroundColor = `hsla(${hue}, 100%, 40%, 1)`; 
+                            const textColor = hue > 40 && hue < 200 ? '#000' : '#fff'; 
+                            
+                            const circleMarker = L.circleMarker([lat, lng], {
+                                radius: 10,
+                                fillColor: backgroundColor,
+                                color: "#fff",
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 0.9
+                            });
+                            
+                            circleMarker.restaurantName = restaurant.name;
+                            
+                            const restaurantIdForVote = restaurant.id;
+                            const currentVotes = restaurant.votes || 0;
+
+                            let foodListHtml = '';
+                            if (restaurant.foods && Array.isArray(restaurant.foods) && restaurant.foods.length > 0) {
+                                foodListHtml = `
+                                    <h4 style="margin-top: 10px; margin-bottom: 5px;">Menu</h4>
+                                    <ul class="restaurant-foods-popup" style="list-style: none; padding-left: 0; margin-bottom: 10px; max-height: 150px; overflow-y: auto;">
+                                        ${restaurant.foods.map(food => {
+                                            let foodText = '';
+                                            let priceText = '';
+                                            if (typeof food === 'object' && food !== null && food.food) {
+                                                foodText = food.food;
+                                                if (food.price) {
+                                                    priceText = `<span class="food-price">${formatPrice(food.price)}</span>`;
+                                                }
+                                            } else if (typeof food === 'string') {
+                                                foodText = food;
+                                            }
+                                            return `<li style="margin-bottom: 3px;">${foodText} ${priceText}</li>`;
+                                        }).join('')}
+                                    </ul>
+                                `;
+                            } else {
+                                foodListHtml = '<p style="font-style: italic; font-size: 0.9em;">No menu information available</p>';
+                            }
+
+                            const popupContent = `
+                                <div class="marker-popup">
+                                    <h3>${restaurant.name}</h3>
+                                    <p><i class="fas fa-walking"></i> ${restaurant.distance}m</p>
+                                    ${restaurant.time ? `<p><i class="far fa-clock"></i> ${formatTime(restaurant.time)}</p>` : ''}
+                                    <div class="badges">
+                                        ${restaurant.epassi ? '<span class="badge"><i class="fas fa-money-bill"></i> ePassi</span>' : ''}
+                                        ${Array.isArray(restaurant.categories) ? restaurant.categories.map(category => 
+                                            `<span class="badge"><i class="fas fa-utensils"></i> ${category}</span>`
+                                        ).join('') : ''}
+                                    </div>
+                                    ${foodListHtml}
+                                    <p style="margin-top: 10px; text-align: center;">
+                                        <button onclick="voteForRestaurant('${restaurantIdForVote}')" style="background-color: #4a6fa5; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                                            <i class="far fa-thumbs-up"></i> Vote (${currentVotes}) 
+                                        </button>
+                                    </p>
+                                </div>
+                            `;
+                            
+                            circleMarker.bindPopup(popupContent);
+                            
+                            const tooltip = circleMarker.bindTooltip(restaurant.name, {
+                                permanent: true, direction: 'top', className: 'restaurant-label map-text', opacity: 0.9, offset: [0, -10]
+                            });
+                            
+                            tooltip.on('add', function (event) {
+                                const tooltipElement = event.target.getTooltip()._container;
+                                if (tooltipElement) {
+                                    tooltipElement.style.setProperty('color', backgroundColor, 'important');
+                                    const borderColor = '#fff';
+                                    tooltipElement.style.setProperty(
+                                        'text-shadow', 
+                                        `-1px -1px 0 ${borderColor}, 1px -1px 0 ${borderColor}, -1px 1px 0 ${borderColor}, 1px 1px 0 ${borderColor}`, 
+                                        'important'
+                                    );
+                                    tooltipElement.style.display = document.getElementById('toggle-labels').classList.contains('active') ? 'block' : 'none';
+                                }
+                            });
+                            
+                            markerCluster.addLayer(circleMarker);
+                        } else {
+                            console.log("Skipping marker for", restaurant.name, "due to invalid coordinates:", restaurant.location);
+                        }
+                    } else {
+                        console.log("Skipping marker for", restaurant.name, "due to missing/invalid location field:", restaurant.location);
+                    }
+                });
+                
+                map.addLayer(markerCluster);
+                markers.push(markerCluster);
+                
+                setupClusterEvents(markerCluster);
+            }
+
+            function setupClusterEvents(clusterGroup) {
+                clusterGroup.on('clusterclick', function(event) {
+                    const cluster = event.layer;
+                    const clusterMarkers = cluster.getAllChildMarkers();
+                    
+                    const popupContent = document.createElement('div');
+                    popupContent.className = 'cluster-popup-content';
+                    popupContent.style.maxHeight = '400px';
+                    popupContent.style.overflowY = 'auto';
+                    popupContent.style.width = '100%';
+                    popupContent.style.minWidth = '300px';
+
+                    const title = document.createElement('h3');
+                    title.textContent = `${clusterMarkers.length} Restaurants in this area`;
+                    title.style.textAlign = 'center';
+                    title.style.margin = '0 0 10px 0';
+                    title.style.padding = '5px';
+                    title.style.borderBottom = '1px solid #ccc';
+                    popupContent.appendChild(title);
+                    
+                    const restaurantsList = document.createElement('div');
+                    
+                    const restaurantDetails = clusterMarkers.map(marker => {
+                        const restaurantName = marker.restaurantName;
+                        return filteredRestaurants.find(r => r.name === restaurantName) || {
+                            name: restaurantName,
+                            distance: 'Unknown',
+                            id: restaurantName,
+                            votes: 0
+                        };
+                    });
+                    
+                    restaurantDetails.sort((a, b) => {
+                        const aVotes = a.votes || 0;
+                        const bVotes = b.votes || 0;
+                        if (aVotes !== bVotes) {
+                            return bVotes - aVotes;
+                        }
+                        return (a.distance || 9999) - (b.distance || 9999);
+                    });
+                    
+                    restaurantDetails.forEach(restaurant => {
+                        const restaurantItem = document.createElement('div');
+                        restaurantItem.style.padding = '10px';
+                        restaurantItem.style.marginBottom = '10px';
+                        restaurantItem.style.borderBottom = '1px solid #eee';
+
+                        const header = document.createElement('div');
+                        header.style.marginBottom = '5px';
+                        header.style.fontWeight = 'bold';
+                        header.style.fontSize = '1.1em';
+                        header.textContent = restaurant.name;
+                        restaurantItem.appendChild(header);
+
+                        const meta = document.createElement('div');
+                        meta.style.display = 'flex';
+                        meta.style.justifyContent = 'space-between';
+                        meta.style.marginBottom = '5px';
+                        meta.style.fontSize = '0.9em';
+
+                        const distance = document.createElement('span');
+                        distance.innerHTML = `<i class="fas fa-walking"></i> ${restaurant.distance}m`;
+                        meta.appendChild(distance);
+
+                        if (restaurant.time) {
+                            const time = document.createElement('span');
+                            time.innerHTML = `<i class="far fa-clock"></i> ${formatTime(restaurant.time)}`;
+                            meta.appendChild(time);
+                        }
+                        restaurantItem.appendChild(meta);
+
+                        const badgesContainer = document.createElement('div');
+                        badgesContainer.style.display = 'flex';
+                        badgesContainer.style.gap = '5px';
+                        badgesContainer.style.flexWrap = 'wrap';
+                        badgesContainer.style.marginTop = '5px';
+
+                        if (restaurant.epassi) {
+                            const epassiBadge = document.createElement('span');
+                            epassiBadge.className = 'badge'; 
+                            epassiBadge.innerHTML = `<i class="fas fa-money-bill"></i> ePassi`;
+                            epassiBadge.style.backgroundColor = 'var(--primary-color)'; 
+                            epassiBadge.style.color = 'white';
+                            epassiBadge.style.fontSize = '0.8em';
+                            badgesContainer.appendChild(epassiBadge);
+                        }
+                        if (Array.isArray(restaurant.categories)) {
+                            restaurant.categories.forEach(category => {
+                                const categoryBadge = document.createElement('span');
+                                categoryBadge.className = 'badge';
+                                categoryBadge.innerHTML = `<i class="fas fa-utensils"></i> ${category}`;
+                                categoryBadge.style.backgroundColor = 'var(--primary-color)';
+                                categoryBadge.style.color = 'white';
+                                categoryBadge.style.fontSize = '0.8em';
+                                badgesContainer.appendChild(categoryBadge);
+                            });
+                        }
+                        if (badgesContainer.hasChildNodes()) {
+                            restaurantItem.appendChild(badgesContainer);
+                        }
+
+                        let foodListHtmlCluster = '';
+                        if (restaurant.foods && Array.isArray(restaurant.foods) && restaurant.foods.length > 0) {
+                            foodListHtmlCluster = `
+                                <h5 style="margin-top: 10px; margin-bottom: 3px; font-size: 0.95em;">Menu</h5>
+                                <ul class="restaurant-foods-popup-cluster" style="list-style: none; padding-left: 0; margin-bottom: 10px; max-height: 100px; overflow-y: auto; font-size: 0.9em;">
+                                    ${restaurant.foods.map(food => {
+                                        let foodText = '';
+                                        let priceText = '';
+                                        if (typeof food === 'object' && food !== null && food.food) {
+                                            foodText = food.food;
+                                            if (food.price) {
+                                                priceText = `<span class="food-price">${formatPrice(food.price)}</span>`;
+                                            }
+                                        } else if (typeof food === 'string') {
+                                            foodText = food;
+                                        }
+                                        return `<li style="margin-bottom: 2px;">${foodText} ${priceText}</li>`;
+                                    }).join('')}
+                                </ul>
+                            `;
+                        } else {
+                            foodListHtmlCluster = '<p style="font-style: italic; font-size: 0.85em; margin-top: 8px;">No menu available</p>';
+                        }
+                        restaurantItem.insertAdjacentHTML('beforeend', foodListHtmlCluster);
+
+                        const voteDiv = document.createElement('div');
+                        voteDiv.style.textAlign = 'center';
+                        voteDiv.style.marginTop = '10px';
+
+                        const voteButtonPopup = document.createElement('button');
+                        voteButtonPopup.style.backgroundColor = '#4a6fa5';
+                        voteButtonPopup.style.color = 'white';
+                        voteButtonPopup.style.border = 'none';
+                        voteButtonPopup.style.padding = '5px 10px';
+                        voteButtonPopup.style.borderRadius = '4px';
+                        voteButtonPopup.style.cursor = 'pointer';
+                        const restaurantIdForVote = restaurant.id; 
+                        const currentVotes = restaurant.votes || 0; 
+                        voteButtonPopup.innerHTML = `<i class="far fa-thumbs-up"></i> Vote (${currentVotes})`;
+                        voteButtonPopup.onclick = () => voteForRestaurant(restaurantIdForVote); 
+
+                        voteDiv.appendChild(voteButtonPopup);
+                        restaurantItem.appendChild(voteDiv);
+
+                        restaurantsList.appendChild(restaurantItem);
+                    });
+
+                    popupContent.appendChild(restaurantsList);
+
+                    L.popup({ minWidth: 300, maxHeight: 400 })
+                        .setLatLng(cluster.getLatLng())
+                        .setContent(popupContent)
+                        .openOn(map);
+                });
+            }
+
+            function initMap() {
+                const tampere = [61.4978, 23.7610];
+                
+                map = L.map('map').setView(tampere, 15);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                addRestaurantMarkers();
+                
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
+
+            function fetchRestaurants() {
+                const restaurantsPromise = db.collection('restaurants').get();
+                const votesPromise = db.collection('votes').doc('votes').get();
+                const favoritesPromise = db.collection('favorites').doc('favorites').get();
+                const blacklistPromise = db.collection('blacklist').doc('blacklist').get();
+
+                Promise.all([restaurantsPromise, votesPromise, favoritesPromise, blacklistPromise])
+                    .then(([restaurantsSnapshot, votesDoc, favoritesDoc, blacklistDoc]) => {
+                        const votesData = votesDoc.exists ? votesDoc.data() : {};
+                        const favoriteIds = favoritesDoc.exists && Array.isArray(favoritesDoc.data().favorites) ? favoritesDoc.data().favorites : [];
+                        blacklist = blacklistDoc.exists && Array.isArray(blacklistDoc.data().blacklist) ? blacklistDoc.data().blacklist : [];
+
+                        restaurants = [];
+                        restaurantsSnapshot.forEach((doc) => {
+                            const restaurantData = doc.data();
+                            const restaurantId = doc.id;
+                            const voteCount = votesData[restaurantId] || 0;
+                            const isFavorite = favoriteIds.includes(restaurantId);
+
+                            restaurants.push({
+                                id: restaurantId,
+                                ...restaurantData,
+                                votes: voteCount,
+                                favorite: isFavorite
+                            });
+                        });
+
+                        filteredRestaurants = [...restaurants];
+                        applyFiltersAndSort();
+                        renderRestaurants();
+
+                        if (!map) {
+                           initMap();
+                        } else {
+                           addRestaurantMarkers();
+                        }
+
+                        showToast('Data loaded successfully');
+                    })
+                    .catch((error) => {
+                        console.error('Error loading data:', error);
+                        document.getElementById('restaurants-container').innerHTML =
+                            '<div class="no-results">Error loading data. Please try again later.</div>';
+                        if (document.getElementById('map-container')) {
+                            document.getElementById('map-container').innerHTML = '<div class="no-results">Error loading map data.</div>';
+                        }
+                    });
+            }
+
+            fetchRestaurants();
+
+            function applyFiltersAndSort() {
+                let tempFiltered = restaurants.filter(restaurant => {
+                    if (currentFilter === 'has-menu' && !(restaurant.foods && restaurant.foods.length > 0)) {
+                        return false;
+                    }
+                    if (currentFilter === 'favorites' && restaurant.favorite !== true) {
+                        return false;
+                    }
+                    
+                    if (searchQuery) {
+                        const restaurantName = (restaurant.name || '').toLowerCase();
+                        const restaurantCategories = Array.isArray(restaurant.categories) ? restaurant.categories.join(' ').toLowerCase() : '';
+                        let foodsMatch = false;
+
+                        if (restaurant.foods && Array.isArray(restaurant.foods)) {
+                            foodsMatch = restaurant.foods.some(food => {
+                                if (typeof food === 'object' && food !== null && food.food) {
+                                    return food.food.toLowerCase().includes(searchQuery);
+                                } else if (typeof food === 'string') {
+                                    return food.toLowerCase().includes(searchQuery);
+                                }
+                                return false;
+                            });
+                        }
+
+                        return restaurantName.includes(searchQuery) ||
+                               restaurantCategories.includes(searchQuery) ||
+                               foodsMatch;
+                    }
+                    
+                    return true;
+                });
+
+                tempFiltered.sort((a, b) => {
+                    const aVotes = a.votes || 0;
+                    const bVotes = b.votes || 0;
+                    
+                    if (aVotes !== bVotes) {
+                        return bVotes - aVotes;
+                    }
+                    
+                    return (a.distance || 9999) - (b.distance || 9999);
+                });
+
+                filteredRestaurants = tempFiltered;
+                
+                if (map && currentView === 'map') { 
+                    addRestaurantMarkers();
+                }
+            }
+
+            function renderRestaurants() {
+                const container = document.getElementById('restaurants-container');
+
+                if (!container) {
+                    console.error("Restaurant container not found!");
+                    return;
+                }
+
+                if (filteredRestaurants.length === 0) {
+                    container.innerHTML = '<div class="no-results">No restaurants found matching your criteria.</div>';
+                    return;
+                }
+
+                let html = '';
+
+                filteredRestaurants.forEach(restaurant => {
+                    const favoriteClass = restaurant.favorite === true ? ' favorite-restaurant' : '';
+                    const isFavorite = restaurant.favorite === true;
+                    const escapedNameForJS = escapeJSString(restaurant.name);
+
+                    let currentCardClasses = favoriteClass; // Start with favorite class
+                    let cardOnclickAttribute = '';
+                    let linkButtonHtml = '';
+
+                    if (linkSourceRestaurantName === null) {
+                        // Normal state: "Link" button
+                        linkButtonHtml = `<button class="link-btn" onclick="window.initiateLink('${escapedNameForJS}')"><i class="fas fa-link"></i> Link</button>`;
+                    } else {
+                        // Linking process is active
+                        if (restaurant.name === linkSourceRestaurantName) {
+                            // This card is the source restaurant
+                            currentCardClasses += ' linking-source';
+                            linkButtonHtml = `<button class="link-btn cancel-link-btn" onclick="window.cancelLink()"><i class="fas fa-times-circle"></i> Cancel Link</button>`;
+                        } else {
+                            // This card is a potential target
+                            currentCardClasses += ' linking-target-mode';
+                            cardOnclickAttribute = `onclick="window.selectLinkTarget('${escapedNameForJS}')" `;
+                            linkButtonHtml = `<button class="link-btn select-target-btn" onclick="window.selectLinkTarget('${escapedNameForJS}')"><i class="fas fa-check-circle"></i> Link Here</button>`;
+                        }
+                    }
+
+                    html += `
+                        <div class="restaurant-card ${currentCardClasses.trim()}" data-id="${restaurant.id || ''}" ${cardOnclickAttribute}>
+                            <div class="restaurant-header">
+                                <div class="restaurant-name">${restaurant.name}</div>
+                                <div class="restaurant-meta">
+                                    <div class="restaurant-distance">
+                                        <i class="fas fa-walking"></i>
+                                        ${restaurant.distance}m
+                                    </div>
+                                    ${restaurant.time ? `
+                                        <div class="restaurant-time">
+                                            <i class="far fa-clock"></i>
+                                            ${formatTime(restaurant.time)}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="restaurant-badges">
+                                    ${restaurant.epassi ? '<span class="badge"><i class="fas fa-money-bill"></i> ePassi</span>' : ''}
+                                    ${Array.isArray(restaurant.categories) ? restaurant.categories.map(category => {
+                                        let icon = 'fa-utensils';
+                                        switch(category.toLowerCase()) {
+                                            case 'barbecue': icon = 'fa-fire'; break;
+                                            case 'buffet': icon = 'fa-concierge-bell'; break;
+                                            case 'burger': icon = 'fa-hamburger'; break;
+                                            case 'café': case 'cafe': icon = 'fa-coffee'; break;
+                                            case 'chinese food': icon = 'fa-pepper-hot'; break;
+                                            case 'fast food': icon = 'fa-shipping-fast'; break;
+                                            case 'food store': case 'grocery store': icon = 'fa-shopping-cart'; break;
+                                            case 'indian food': icon = 'fa-pepper-hot'; break;
+                                            case 'japanese food': icon = 'fa-fish'; break;
+                                            case 'kebab': icon = 'fa-drumstick-bite'; break;
+                                            case 'lounas': icon = 'fa-utensils'; break;
+                                            case 'mexican food': icon = 'fa-pepper-hot'; break;
+                                            case 'pasta': icon = 'fa-utensil-spoon'; break;
+                                            case 'pizza': icon = 'fa-pizza-slice'; break;
+                                        }
+                                        return `<span class="badge"><i class="fas ${icon}"></i> ${category}</span>`;
+                                    }).join('') : ''}
+                                </div>
+                            </div>
+                            <div class="restaurant-body">
+                                ${restaurant.foods && Array.isArray(restaurant.foods) && restaurant.foods.length > 0 ? `
+                                    <ul class="restaurant-foods">
+                                        ${restaurant.foods.map(food => {
+                                            let foodName = '';
+                                            let foodPrice = '';
+                                            let foodAttributes = '';
+                                            if (typeof food === 'object' && food !== null && food.food) {
+                                                foodName = food.food;
+                                                foodPrice = food.price ? formatPrice(food.price) : '';
+                                                foodAttributes = Array.isArray(food.attributes) ? food.attributes.join(', ') : '';
+                                            } else if (typeof food === 'string') {
+                                                foodName = food;
+                                            }
+                                            return `
+                                                <li>
+                                                    <span class="food-name">${foodName}</span>
+                                                    ${foodPrice ? `<span class="food-price">${foodPrice}</span>` : ''}
+                                                    ${foodAttributes ? `<span class="food-attributes">(${foodAttributes})</span>` : ''}
+                                                </li>
+                                            `;
+                                        }).join('')}
+                                    </ul>
+                                ` : `
+                                    <div class="no-foods">No menu information available</div>
+                                `}
+                            </div>
+                            <div class="favorite-toggle">
+                                <button class="favorite-btn ${isFavorite ? 'active' : ''}" onclick="toggleFavorite('${restaurant.id || ''}', this)">
+                                    <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
+                                </button>
+                            </div>
+                            <div class="card-actions">
+                                <button class="vote-btn" onclick="window.voteForRestaurant('${restaurant.id}')">
+                                    <i class="far fa-thumbs-up"></i> Vote (${restaurant.votes || 0})
+                                </button>
+                                <button class="blacklist-btn" onclick="window.blacklistRestaurant('${escapedNameForJS}')">
+                                    <i class="fas fa-ban"></i> Blacklist
+                                </button>
+                                ${linkButtonHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            function renderBlacklistView() {
+                const blacklistItemsContainer = document.getElementById('blacklist-items');
+                if (!blacklistItemsContainer) {
+                    console.error("Blacklist items container not found!");
+                    return;
+                }
+
+                if (blacklist.length === 0) {
+                    blacklistItemsContainer.innerHTML = '<li>No restaurants are currently blacklisted.</li>';
+                    return;
+                }
+
+                let html = '';
+                blacklist.forEach(name => {
+                    html += `
+                        <li>
+                            <span>${name}</span>
+                            <button class="remove-blacklist-btn" onclick="removeFromBlacklist('${name.replace(/'/g, "\\\\'")}')">Remove</button>
+                        </li>
+                    `;
+                });
+                blacklistItemsContainer.innerHTML = html;
+            }
+
+            function formatTime(timeStr) {
+                if (!timeStr || timeStr === "0") return "Not specified";
+                
+                if (timeStr.length === 4) {
+                    return `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}`;
+                } else if (timeStr.length === 6) {
+                    return `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}-${timeStr.substring(4, 6)}:00`;
+                }
+                
+                return timeStr;
+            }
+            
+            function formatPrice(priceStr) {
+                if (!priceStr) return "";
+                const price = parseInt(priceStr);
+                if (isNaN(price)) return priceStr;
+                
+                return (price / 100).toFixed(2).replace('.', ',') + '€';
+            }
+            
+            window.voteForRestaurant = function(restaurantId) {
+                if (!restaurantId) {
+                    console.error("Cannot vote: Restaurant ID is missing.");
+                    showToast("Error: Could not identify restaurant.", 5000);
+                    return;
+                }
+
+                const votesDocRef = db.collection('votes').doc('votes');
+
+                db.runTransaction((transaction) => {
+                    return transaction.get(votesDocRef).then((doc) => {
+                        let currentVotes = {};
+                        if (doc.exists) {
+                            currentVotes = doc.data() || {};
+                        }
+                        
+                        const newVoteCount = (currentVotes[restaurantId] || 0) + 1;
+                        
+                        const updateData = {};
+                        updateData[restaurantId] = newVoteCount;
+
+                        if (doc.exists) {
+                            transaction.update(votesDocRef, updateData);
+                        } else {
+                            transaction.set(votesDocRef, updateData);
+                        }
+                        
+                        return newVoteCount;
+                    });
+                }).then((newVoteCount) => {
+                    const restaurantIndex = restaurants.findIndex(r => r.id === restaurantId);
+                    if (restaurantIndex !== -1) {
+                        restaurants[restaurantIndex].votes = newVoteCount;
+                    }
+                    const filteredIndex = filteredRestaurants.findIndex(r => r.id === restaurantId);
+                    if (filteredIndex !== -1) {
+                        filteredRestaurants[filteredIndex].votes = newVoteCount;
+                    }
+                    
+                    const voteButtonList = document.querySelector(`.restaurant-card[data-id="${restaurantId}"] .vote-btn`);
+                    if (voteButtonList) {
+                        voteButtonList.innerHTML = `<i class="far fa-thumbs-up"></i> Vote (${newVoteCount})`;
+                    }
+
+                    showToast('Vote recorded!');
+                    
+                    if (map) {
+                        addRestaurantMarkers();
+                    }
+
+                }).catch((error) => {
+                    console.error('Vote transaction failed:', error);
+                    showToast('Error recording vote. Please try again.');
+                });
+            };
+
+            window.blacklistRestaurant = function(restaurantName) {
+                if (!restaurantName) {
+                    console.error("Cannot blacklist: Restaurant name is missing.");
+                    showToast("Error: Could not identify restaurant for blacklisting.", 5000);
+                    return;
+                }
+
+                const blacklistDocRef = db.collection('blacklist').doc('blacklist');
+
+                blacklistDocRef.update({
+                    blacklist: firebase.firestore.FieldValue.arrayUnion(restaurantName)
+                })
+                .then(() => {
+                    showToast(`'${restaurantName}' added to blacklist.`);
+                    if (!blacklist.includes(restaurantName)) {
+                        blacklist.push(restaurantName);
+                        if (document.getElementById('blacklist-view-container').style.display === 'block') {
+                            renderBlacklistView();
+                        }
+                    }
+                })
+                .catch((error) => {
+                    if (error.code === 'not-found' || error.message.includes("No document to update")) {
+                        blacklistDocRef.set({
+                            blacklist: [restaurantName]
+                        })
+                        .then(() => {
+                            showToast(`'${restaurantName}' added to blacklist (new list created).`);
+                            if (!blacklist.includes(restaurantName)) {
+                                blacklist.push(restaurantName);
+                                if (document.getElementById('blacklist-view-container').style.display === 'block') {
+                                    renderBlacklistView();
+                                }
+                            }
+                        })
+                        .catch(setError => {
+                            console.error("Error setting blacklist document:", setError);
+                            showToast(`Error blacklisting '${restaurantName}'. Please try again.`, 5000);
+                        });
+                    } else {
+                        console.error("Error blacklisting restaurant:", error);
+                        showToast(`Error blacklisting '${restaurantName}'. Please try again.`, 5000);
+                    }
+                });
+            };
+
+            window.removeFromBlacklist = function(restaurantName) {
+                if (!restaurantName) {
+                    console.error("Cannot remove from blacklist: Restaurant name is missing.");
+                    showToast("Error: Could not identify restaurant for removal.", 5000);
+                    return;
+                }
+
+                const blacklistDocRef = db.collection('blacklist').doc('blacklist');
+
+                blacklistDocRef.update({
+                    blacklist: firebase.firestore.FieldValue.arrayRemove(restaurantName)
+                })
+                .then(() => {
+                    showToast(`'${restaurantName}' removed from blacklist.`);
+                    blacklist = blacklist.filter(name => name !== restaurantName);
+                    renderBlacklistView();
+
+                    if (currentView === 'list' || currentView === 'map') {
+                        fetchRestaurants();
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error removing from blacklist:", error);
+                    showToast(`Error removing '${restaurantName}' from blacklist. Please try again.`, 5000);
+                });
+            };
+
+            window.initiateLink = function(sourceName) {
+                const escapedSourceName = sourceName.replace(/'/g, "\\\\'").replace(/"/g, "&quot;");
+                if (linkSourceRestaurantName === sourceName) { // Clicked "Cancel Link" on the source itself
+                    cancelLink();
+                    return;
+                }
+                
+                if (linkSourceRestaurantName && linkSourceRestaurantName !== sourceName) {
+                    // Already linking another restaurant, cancel that and start new
+                    showToast(`Linking for '${linkSourceRestaurantName}' cancelled. Starting new link for '${sourceName}'.`);
+                    linkSourceRestaurantName = sourceName;
+                } else {
+                    linkSourceRestaurantName = sourceName;
+                    showToast(`Select another restaurant to link with '${sourceName}'. Or click its 'Cancel Link' button.`);
+                }
+                renderRestaurants(); // Re-render to update UI
+            };
+
+            window.selectLinkTarget = function(targetName) {
+                if (!linkSourceRestaurantName || linkSourceRestaurantName === targetName) {
+                    // Should not happen if UI is correct (cannot select source as target)
+                    // Or if linking was not initiated
+                    cancelLink(); // Reset state
+                    return;
+                }
+
+                const sourceName = linkSourceRestaurantName;
+                const mapDocRef = db.collection('map').doc('map');
+                const updateData = {};
+                updateData[sourceName] = targetName;
+
+                mapDocRef.set(updateData, { merge: true })
+                    .then(() => {
+                        showToast(`Linked '${sourceName}' to '${targetName}'.`);
+                        linkSourceRestaurantName = null; // Reset linking state
+                        renderRestaurants(); // Re-render to reset UI
+                    })
+                    .catch(error => {
+                        console.error("Error linking restaurants:", error);
+                        showToast(`Error linking restaurants: ${error.message}`, 5000);
+                        linkSourceRestaurantName = null; // Reset linking state on error
+                        renderRestaurants(); // Re-render to reset UI
+                    });
+            };
+
+            window.cancelLink = function() {
+                if (linkSourceRestaurantName) {
+                    showToast(`Linking cancelled for '${linkSourceRestaurantName}'.`);
+                    linkSourceRestaurantName = null;
+                    renderRestaurants(); // Re-render to reset UI
+                }
+            };
+
+            window.toggleFavorite = function(restaurantId, buttonElement) {
+                if (!restaurantId) {
+                    console.error("Restaurant ID is missing for favorite toggle.");
+                    showToast("Error: Could not identify restaurant.", 5000);
+                    return;
+                }
+
+                const favoritesDocRef = db.collection('favorites').doc('favorites');
+                let currentFavoriteStatus = false;
+
+                const restaurantIndex = restaurants.findIndex(r => r.id === restaurantId);
+                if (restaurantIndex !== -1) {
+                    currentFavoriteStatus = restaurants[restaurantIndex].favorite === true;
+                } else {
+                    console.warn(`Restaurant with ID ${restaurantId} not found in local 'restaurants' array for status check.`);
+                    currentFavoriteStatus = buttonElement.classList.contains('active');
+                }
+
+                const newFavoriteStatus = !currentFavoriteStatus;
+                const updateAction = newFavoriteStatus
+                    ? firebase.firestore.FieldValue.arrayUnion(restaurantId)
+                    : firebase.firestore.FieldValue.arrayRemove(restaurantId);
+
+                favoritesDocRef.update({
+                    favorites: updateAction
+                })
+                .then(() => {
+                    showToast(newFavoriteStatus ? 'Added to favorites!' : 'Removed from favorites!');
+
+                    if (restaurantIndex !== -1) {
+                        restaurants[restaurantIndex].favorite = newFavoriteStatus;
+                        const filteredIndex = filteredRestaurants.findIndex(r => r.id === restaurantId);
+                        if (filteredIndex !== -1) {
+                            filteredRestaurants[filteredIndex].favorite = newFavoriteStatus;
+                        }
+                    } else {
+                        console.warn(`Could not update local data cache for ${restaurantId} as it was not found.`);
+                    }
+
+                    const cardElement = buttonElement.closest('.restaurant-card');
+                    const iconElement = buttonElement.querySelector('i');
+
+                    if (cardElement && iconElement) {
+                        if (newFavoriteStatus) {
+                            cardElement.classList.add('favorite-restaurant');
+                            buttonElement.classList.add('active');
+                            iconElement.classList.remove('far');
+                            iconElement.classList.add('fas');
+                        } else {
+                            cardElement.classList.remove('favorite-restaurant');
+                            buttonElement.classList.remove('active');
+                            iconElement.classList.remove('fas');
+                            iconElement.classList.add('far');
+                        }
+                    } else {
+                        console.warn("Could not find card or icon element for direct UI update.");
+                    }
+
+                })
+                .catch((error) => {
+                    console.error("Error updating favorite status:", error);
+                    showToast("Error updating favorite status. Please try again.", 5000);
+                });
+            };
+
+            document.getElementById('search-input').addEventListener('input', function(e) {
+                searchQuery = e.target.value.toLowerCase();
+                applyFiltersAndSort();
+                renderRestaurants();
+            });
+
+            document.querySelectorAll('.filter-btn[data-filter]').forEach(button => {
+                button.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    applyFiltersAndSort();
+                    renderRestaurants();
+                });
+            });
+
+            document.querySelectorAll('.filter-btn[data-view]').forEach(button => {
+                button.addEventListener('click', function() {
+                    showView(this.dataset.view); // Use the new showView function
+                });
+            });
+            
+            document.getElementById('toggle-labels').addEventListener('click', function() {
+                this.classList.toggle('active');
+                const mapContainer = document.getElementById('map-container');
+                mapContainer.classList.toggle('show-labels');
+                
+                if (this.classList.contains('active')) {
+                    this.innerHTML = '<i class="fas fa-tag"></i> Hide Names';
+                    showToast('Restaurant names are now visible');
+                } else {
+                    this.innerHTML = '<i class="fas fa-tag"></i> Show Names';
+                    showToast('Restaurant names are now hidden');
+                    
+                    const clusterNameElements = document.querySelectorAll('.no-bg-names');
+                    clusterNameElements.forEach(el => {
+                        if (el && el.parentElement) {
+                            el.style.display = 'none';
+                        }
+                    });
+                }
+                
+                if (map) {
+                    addRestaurantMarkers();
+                }
+            });
+
+            document.getElementById('toggle-blacklist-view').addEventListener('click', function() {
+                if (currentView === 'blacklist') {
+                    showView(previousView); // Revert to the view that was active before blacklist
+                } else {
+                    showView('blacklist');
+                }
+            });
+
+            // Event listener for the "Manage Links" button
+            document.getElementById('toggle-link-view').addEventListener('click', function() {
+                if (currentView === 'link') {
+                    showView(previousView); // Revert to the view that was active before link view
+                } else {
+                    showView('link');
+                }
+            });
+
+            // --- New Functions for Custom Config Management ---
+            function renderCustomConfigsView() {
+                const listContainer = document.getElementById('custom-configs-list');
+                listContainer.innerHTML = '<p>Loading custom configurations...</p>';
+
+                db.collection('custom').get().then(snapshot => {
+                    if (snapshot.empty) {
+                        listContainer.innerHTML = '<p>No custom configurations found. Click "Add New" to create one.</p>';
+                        return;
+                    }
+                    
+                    let html = '<ul style="list-style-type: none; padding: 0;">';
+                    snapshot.forEach(doc => {
+                        const configName = doc.id;
+                        const configData = doc.data();
+                        const escapedConfigName = escapeJSString(configName);
+
+                        html += `
+                            <li style="border: 1px solid #eee; margin-bottom: 10px; padding: 15px; border-radius: 5px; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--primary-color);">${configName}</h4>
+                                <pre style="white-space: pre-wrap; word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #e9ecef; font-size: 0.9em;">${JSON.stringify(configData, null, 2)}</pre>
+                                <div style="margin-top: 10px;">
+                                    <button class="filter-btn" style="background-color: #ffc107; color: black; margin-right: 5px;" onclick="window.displayCustomConfigForm('${escapedConfigName}')">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="filter-btn" style="background-color: #dc3545; color: white;" onclick="window.deleteCustomConfig('${escapedConfigName}')">
+                                        <i class="fas fa-trash-alt"></i> Delete
+                                    </button>
+                                </div>
+                            </li>`;
+                    });
+                    html += '</ul>';
+                    listContainer.innerHTML = html;
+                }).catch(error => {
+                    console.error("Error fetching custom configurations: ", error);
+                    listContainer.innerHTML = '<p style="color: red;">Error loading configurations. Please try again.</p>';
+                    showToast('Error fetching custom configs: ' + error.message, 5000);
+                });
+            }
+            window.renderCustomConfigsView = renderCustomConfigsView;
+
+
+            window.displayCustomConfigForm = function(configName = null) {
+                const formSection = document.getElementById('custom-config-form-section');
+                const form = document.getElementById('custom-config-form');
+                const formTitle = document.getElementById('custom-form-title');
+                const nameInput = document.getElementById('custom-restaurant-name');
+                const originalNameInput = document.getElementById('custom-config-original-name');
+
+                form.reset(); 
+
+                if (configName) { 
+                    formTitle.textContent = `Edit Configuration: ${configName}`;
+                    nameInput.value = configName;
+                    nameInput.readOnly = true; 
+                    originalNameInput.value = configName;
+
+                    db.collection('custom').doc(configName).get().then(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            document.getElementById('custom-type').value = data.type || '';
+                            document.getElementById('custom-url').value = data.url || '';
+                            document.getElementById('custom-foods').value = data.foods || '';
+                            document.getElementById('custom-categories').value = Array.isArray(data.categories) ? data.categories.join(',') : '';
+                            document.getElementById('custom-location').value = Array.isArray(data.location) ? data.location.join(',') : '';
+                            document.getElementById('custom-distance').value = data.distance !== null && data.distance !== undefined ? data.distance : '';
+                            document.getElementById('custom-epassi').checked = data.epassi === true;
+                        } else {
+                            showToast(`Error: Config '${configName}' not found for editing.`, 4000);
+                            formSection.style.display = 'none';
+                            return;
+                        }
+                    }).catch(error => {
+                        showToast(`Error fetching config '${configName}': ${error.message}`, 5000);
+                        formSection.style.display = 'none';
+                        return;
+                    });
+                } else { 
+                    formTitle.textContent = 'Add New Custom Configuration';
+                    nameInput.readOnly = false;
+                    originalNameInput.value = '';
+                }
+                formSection.style.display = 'block';
+            }
+
+            document.getElementById('add-custom-config-btn').addEventListener('click', () => {
+                window.displayCustomConfigForm();
+            });
+
+            document.getElementById('cancel-custom-form-btn').addEventListener('click', () => {
+                document.getElementById('custom-config-form-section').style.display = 'none';
+            });
+
+            document.getElementById('custom-config-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                const restaurantName = document.getElementById('custom-restaurant-name').value.trim();
+                const originalName = document.getElementById('custom-config-original-name').value.trim();
+                const isEditing = !!originalName;
+
+                if (!restaurantName) {
+                    showToast('Restaurant Name (ID) is required.', 4000);
+                    return;
+                }
+
+                const categoriesRaw = document.getElementById('custom-categories').value.trim();
+                const locationRaw = document.getElementById('custom-location').value.trim();
+                const distanceRaw = document.getElementById('custom-distance').value.trim();
+
+                const configData = {
+                    name: restaurantName, 
+                    type: document.getElementById('custom-type').value.trim() || null,
+                    url: document.getElementById('custom-url').value.trim() || null,
+                    foods: document.getElementById('custom-foods').value.trim() || null,
+                    epassi: document.getElementById('custom-epassi').checked,
+                    categories: categoriesRaw ? categoriesRaw.split(',').map(c => c.trim()).filter(c => c) : [],
+                    location: null,
+                    distance: distanceRaw ? parseInt(distanceRaw, 10) : null
+                };
+
+                if (locationRaw) {
+                    const locParts = locationRaw.split(',').map(p => p.trim());
+                    if (locParts.length === 2) {
+                         // Keep as strings, as per original data structure example
+                        configData.location = [locParts[0], locParts[1]];
+                    } else {
+                        showToast('Invalid location format (expected "latitude,longitude"). Location will be saved as null.', 4000);
+                    }
+                }
+                
+                if (distanceRaw && isNaN(configData.distance)) { // if distanceRaw is not empty and parsing failed
+                    showToast('Invalid distance. It should be a number. Distance will be saved as null.', 4000);
+                    configData.distance = null;
+                }
+
+
+                const docIdToSave = isEditing ? originalName : restaurantName;
+
+                db.collection('custom').doc(docIdToSave).set(configData)
+                    .then(() => {
+                        showToast(`Configuration for '${docIdToSave}' ${isEditing ? 'updated' : 'added'} successfully.`, 3000);
+                        document.getElementById('custom-config-form-section').style.display = 'none';
+                        renderCustomConfigsView();
+                        // If custom configs affect main restaurant list, uncomment:
+                        // fetchRestaurants(); 
+                    })
+                    .catch(error => {
+                        console.error("Error saving custom config: ", error);
+                        showToast(`Error saving config: ${error.message}`, 5000);
+                    });
+            });
+
+            window.deleteCustomConfig = function(configName) {
+                if (!configName) {
+                    showToast('Error: Configuration name is missing for deletion.', 4000);
+                    return;
+                }
+                if (!confirm(`Are you sure you want to delete the custom configuration for "${configName}"?`)) {
+                    return;
+                }
+
+                db.collection('custom').doc(configName).delete()
+                    .then(() => {
+                        showToast(`Custom configuration for '${configName}' deleted successfully.`, 3000);
+                        renderCustomConfigsView();
+                        // If custom configs affect main restaurant list, uncomment:
+                        // fetchRestaurants();
+                    })
+                    .catch(error => {
+                        console.error("Error deleting custom config: ", error);
+                        showToast(`Failed to delete config '${configName}': ${error.message}`, 5000);
+                    });
+            }
+
+            // Event listener for the "Manage Custom" button
+            document.getElementById('toggle-custom-view').addEventListener('click', function() {
+                if (currentView === 'custom') {
+                    showView(previousView); 
+                } else {
+                    showView('custom');
+                }
+            });
+            // --- End of New Functions for Custom Config Management ---
+
+        });
+    </script>
+</body>
+</html>
