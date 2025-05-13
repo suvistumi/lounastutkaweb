@@ -1,0 +1,871 @@
+
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #166088;
+            --accent-color: #4fc3f7;
+            --background-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --light-text: #6c757d;
+            --border-color: #e0e0e0;
+            --success-color: #4caf50;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 90%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            margin: 0 auto;
+            max-width: 1200px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .today-date {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .filter-btn {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        #blacklist-view-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+
+        #blacklist-view-container h2 {
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+
+        #blacklist-items {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #blacklist-items li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #blacklist-items li:last-child {
+            border-bottom: none;
+        }
+
+        .remove-blacklist-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .remove-blacklist-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .link-btn {
+            background-color: #6c757d; /* Grey */
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .link-btn:hover {
+            background-color: #5a6268;
+        }
+        .link-btn i {
+            margin-right: 5px;
+        }
+
+        .restaurant-card.linking-source {
+            border: 2px solid #007bff; /* Blue */
+            background-color: #e7f3ff; /* Lighter blue */
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+        }
+        .restaurant-card.linking-source .restaurant-name {
+            font-weight: bold;
+        }
+
+        .restaurant-card.linking-target-mode {
+            border: 2px dashed #28a745; /* Green */
+            /* cursor: pointer; is already in the CSS for the card if it has an onclick */
+            opacity: 0.85;
+            transition: opacity 0.2s ease, background-color 0.2s ease;
+        }
+        .restaurant-card.linking-target-mode:hover {
+            background-color: #e9f5e9; /* Lighter green */
+            opacity: 1;
+        }
+
+        .linking-source .link-btn.cancel-link-btn {
+            background-color: #dc3545; /* Red */
+        }
+        .linking-source .link-btn.cancel-link-btn:hover {
+            background-color: #c82333;
+        }
+
+        .linking-target-mode .link-btn.select-target-btn {
+            background-color: #28a745; /* Green */
+        }
+        .linking-target-mode .link-btn.select-target-btn:hover {
+            background-color: #218838;
+        }
+
+        .restaurant-card.linking-source {
+            border: 2px solid var(--primary-color); /* Blue border for source */
+            background-color: #e6f0ff; /* Light blue background */
+        }
+
+        .restaurant-card.linking-target-mode {
+            border: 2px dashed var(--success-color); /* Green dashed border for targets */
+            cursor: pointer;
+        }
+
+        .restaurant-card.linking-target-mode:hover {
+            background-color: #e6ffe6; /* Light green background on hover */
+        }
+
+        .sort-options {
+            display: flex;
+            gap: 15px;
+            margin-left: auto;
+        }
+
+        #restaurants-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .restaurant-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            position: relative; /* Needed for absolute positioning of children */
+            padding-bottom: 50px; /* Increased padding to prevent overlap with buttons */
+        }
+
+        .restaurant-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Add this new style for favorite restaurants */
+        .favorite-restaurant {
+            border: 3px solid gold;
+            box-shadow: 0 0 10px gold, var(--shadow); /* Add glow effect */
+            padding-bottom: 50px; /* Match the card padding */
+        }
+
+        .favorite-toggle {
+            position: absolute;
+            bottom: 10px; /* Adjust as needed */
+            left: 15px;  /* Adjust as needed */
+            z-index: 10; /* Ensure it's above other elements if needed */
+        }
+
+        .favorite-btn {
+            background: none;
+            border: none;
+            color: #ccc; /* Default color for non-favorite */
+            font-size: 1.5em; /* Adjust size */
+            cursor: pointer;
+            padding: 0;
+            line-height: 1; /* Prevent extra spacing */
+        }
+
+        .favorite-btn.active {
+            color: #e74c3c; /* Red color for favorite */
+        }
+
+        .favorite-btn:hover {
+            color: #e74c3c; /* Hover color */
+        }
+
+        .restaurant-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .restaurant-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .restaurant-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .restaurant-distance, .restaurant-time {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .restaurant-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .restaurant-body {
+            padding: 15px;
+        }
+
+        .restaurant-foods {
+            list-style-type: none;
+        }
+
+        .food-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .food-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .food-name {
+            font-weight: 500;
+        }
+
+        .food-price {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .no-foods {
+            color: var(--light-text);
+            font-style: italic;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .vote-section {
+            position: absolute;
+            bottom: 10px;
+            right: 15px; /* Position vote button to the right */
+            z-index: 10; /* Ensure it's above other elements if needed */
+        }
+
+        .vote-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .vote-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .blacklist-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: #dc3545; /* Red color for blacklist */
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.8em; /* Smaller font size */
+        }
+
+        .blacklist-btn:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
+
+        .card-actions {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            display: flex;
+            gap: 10px; /* Space between buttons */
+            align-items: center;
+            z-index: 10; /* Ensure it's above other elements */
+        }
+
+        @media (max-width: 768px) {
+            #restaurants-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-container, .filter-container {
+                flex-direction: column;
+            }
+            
+            .sort-options {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+
+        .loader {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.5rem;
+            color: var(--light-text);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--light-text);
+            font-size: 1.2rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Map view styles */
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        
+        #map-container {
+            height: 70vh;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-top: 20px;
+            display: none;
+            position: relative;
+        }
+        
+        #toggle-labels {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 500;
+            background-color: white;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            box-shadow: var(--shadow);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        #toggle-labels.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px;
+        }
+        
+        .marker-popup {
+            min-width: 200px;
+        }
+        
+        .marker-popup h3 {
+            margin-bottom: 5px;
+            color: var(--secondary-color);
+        }
+        
+        .marker-popup p {
+            margin: 2px 0;
+            font-size: 0.9rem;
+        }
+        
+        .marker-popup .badges {
+            margin-top: 5px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .marker-popup .badge {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+        
+        /* Name labels on map styles */
+        .restaurant-label {
+            background-color: transparent;
+            border: none;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-weight: normal;
+            white-space: nowrap;
+            display: none;
+        }
+        
+        .show-labels .restaurant-label {
+            display: block;
+        }
+        
+        /* Override Leaflet's default tooltip styles to remove background */
+        .leaflet-tooltip {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-weight: bold !important;
+        }
+        
+        /* Yhteiset tyylit sekä tooltip-teksteille että klustereiden nimiä varten */
+        .map-text {
+            font-weight: bold !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            /* Text-shadow määritetään JavaScriptissa dynaamisesti */
+        }
+        
+        /* No-bg-names luokka klusterien nimille */
+        .no-bg-names li {
+            padding: 0;
+            margin: 0;
+            font-weight: bold !important;
+            background: none !important;
+            /* Text-shadow määritetään JavaScriptissa dynaamisesti */
+        }
+        
+        /* Cluster restaurants list styles */
+        .cluster-restaurants-list {
+            position: absolute;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            border-radius: 8px;
+            padding: 10px;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 999;
+            pointer-events: auto;
+        }
+        
+        .cluster-restaurants-list ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .cluster-restaurants-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .cluster-restaurants-list li:last-child {
+            border-bottom: none;
+        }
+        
+        /* Custom marker cluster styles with names */
+        .marker-cluster.show-names {
+            background: transparent !important;
+            overflow: visible !important;
+        }
+        
+        .marker-dot {
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        }
+        
+        .cluster-with-names {
+            position: relative;
+        }
+        
+        .cluster-names {
+            background-color: white;
+            padding: 6px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            position: absolute;
+            right: 40px;
+            top: 5px;
+            width: 180px;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: right;
+        }
+        
+        .cluster-names div {
+            padding: 1px 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: right;
+        }
+        
+        /* Override Leaflet's marker-cluster styles when showing names */
+        .marker-cluster.show-names div {
+            background-color: transparent !important;
+            color: inherit !important;
+            width: auto !important;
+            height: auto !important;
+            line-height: normal !important;
+            margin: 0 !important;
+        }
+        
+        /* Cluster names overlay style */
+        .marker-cluster.with-names {
+            overflow: visible !important;
+            z-index: 900 !important;
+        }
+        
+        .cluster-names-overlay {
+            position: absolute;
+            text-align: right;
+            width: 180px;
+            right: 35px;
+            top: -5px;
+            font-size: 10px;
+            line-height: 1.1;
+        }
+        
+        .cluster-names-overlay div {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #000;
+        }
+        
+        /* Cluster with single circle and names list that overlays the circle */
+        .cluster-container {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .cluster-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 900;
+        }
+        
+        .cluster-names-list {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 150px;
+            text-align: center;
+            padding-top: 15px;
+            z-index: 899;
+        }
+        
+        .cluster-names-list div {
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: black;
+            padding: 1px 0;
+        }
+        
+        /* Cluster text overlay styles */
+        .marker-cluster.with-text {
+            background: transparent !important;
+        }
+        
+        .text-cluster {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .text-cluster-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.9);
+        }
+        
+        .text-cluster-names {
+            position: absolute;
+            left: 20px;
+            top: 0;
+            font-size: 10px;
+            line-height: 1.3;
+            text-align: left;
+            min-width: 200px;
+            width: auto;
+            white-space: nowrap;
+            z-index: -1;
+        }
+        
+        /* Cluster display with circle marker and text with no background */
+        .marker-cluster.with-names-list {
+            background: transparent !important;
+            overflow: visible !important;
+        }
+        
+        .cluster-display {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .cluster-circle-marker {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(74, 111, 165, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .cluster-text-list {
+            position: absolute;
+            left: 20px;
+            top: 5px;
+            background: transparent !important;
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: left;
+            width: auto;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: -1;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Pure style for clusters with text without any background */
+        .marker-cluster.pure-style {
+            overflow: visible !important;
+        }
+        
+        .pure-cluster {
+            width: 40px;
+            height: 40px;
+        }
+        
+        .pure-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .pure-names {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            font-size: 10px;
+            line-height: 1.2;
+            text-align: center;
+            padding-top: 40px;
+            color: black;
+            white-space: nowrap;
+            background: transparent !important;
+            pointer-events: none;
+        }
+        
+        /* Final style for cluster with names */
+        .marker-cluster.final-style {
+            overflow: visible !important;
+        }
+        
+        .standard-cluster {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(74, 111, 165, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .no-bg-names {
+            position: absolute;
+            left: 40px;
+            top: 10px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            width: auto;
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            pointer-events: none;
+            background: none !important;
+            border: none !important;
+        }
+        
+        .no-bg-names li {
+            padding: 0;
+            margin: 0;
+            background: none !important;
+        }
