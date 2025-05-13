@@ -41,6 +41,7 @@
             <button class="filter-btn" id="toggle-blacklist-view"><i class="fas fa-list-alt"></i> Show Blacklist</button>
             <button class="filter-btn" id="toggle-link-view"><i class="fas fa-link"></i> Manage Links</button> 
             <button class="filter-btn" id="toggle-custom-view"><i class="fas fa-cog"></i> Manage Custom</button>
+            <button class="filter-btn" id="force-fetch-btn"><i class="fas fa-sync-alt"></i> Fetch Latest</button>
             <div class="view-toggle">
                 <button class="filter-btn active" data-view="list"><i class="fas fa-list"></i> List</button>
                 <button class="filter-btn" data-view="map"><i class="fas fa-map-marked-alt"></i> Map</button>
@@ -739,32 +740,107 @@
                 }, 100);
             }
 
-            function fetchRestaurants() {
-                const restaurantsPromise = db.collection('restaurants').get();
+            function fetchRestaurants(forceRefresh = false) {
+                const CACHE_KEY_RESTAURANTS = 'cachedRestaurants';
+                const CACHE_DURATION_HOURS = 8;
+                const CACHE_DURATION_MS = CACHE_DURATION_HOURS * 60 * 60 * 1000;
+
+                let localFavoriteIds = [];
+                try {
+                    const storedFavorites = localStorage.getItem('favoriteRestaurantIds');
+                    if (storedFavorites) {
+                        localFavoriteIds = JSON.parse(storedFavorites);
+                    }
+                } catch (e) {
+                    console.error('Error reading favorites from localStorage:', e);
+                }
+
+                let cachedRestaurantsData = null;
+                let usingCache = false;
+
+                if (!forceRefresh) {
+                    try {
+                        const cachedItem = localStorage.getItem(CACHE_KEY_RESTAURANTS);
+                        if (cachedItem) {
+                            const parsedCache = JSON.parse(cachedItem);
+                            if (parsedCache && parsedCache.timestamp && parsedCache.data &&
+                                (Date.now() - parsedCache.timestamp < CACHE_DURATION_MS)) {
+                                cachedRestaurantsData = parsedCache.data;
+                                usingCache = true;
+                                console.log('Using cached restaurant data.');
+                            } else {
+                                console.log('Cached restaurant data is old or invalid, fetching from Firebase.');
+                                localStorage.removeItem(CACHE_KEY_RESTAURANTS);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error reading restaurants from localStorage:', e);
+                        localStorage.removeItem(CACHE_KEY_RESTAURANTS);
+                    }
+                } else {
+                    console.log('Forcing refresh, fetching from Firebase.');
+                    localStorage.removeItem(CACHE_KEY_RESTAURANTS);
+                }
+
+                const restaurantsPromise = usingCache
+                    ? Promise.resolve(cachedRestaurantsData)
+                    : db.collection('restaurants').get();
+
                 const votesPromise = db.collection('votes').doc('votes').get();
-                const favoritesPromise = db.collection('favorites').doc('favorites').get();
                 const blacklistPromise = db.collection('blacklist').doc('blacklist').get();
 
-                Promise.all([restaurantsPromise, votesPromise, favoritesPromise, blacklistPromise])
-                    .then(([restaurantsSnapshot, votesDoc, favoritesDoc, blacklistDoc]) => {
+                Promise.all([restaurantsPromise, votesPromise, blacklistPromise])
+                    .then(([restaurantsSnapshotOrData, votesDoc, blacklistDoc]) => {
                         const votesData = votesDoc.exists ? votesDoc.data() : {};
-                        const favoriteIds = favoritesDoc.exists && Array.isArray(favoritesDoc.data().favorites) ? favoritesDoc.data().favorites : [];
                         blacklist = blacklistDoc.exists && Array.isArray(blacklistDoc.data().blacklist) ? blacklistDoc.data().blacklist : [];
 
                         restaurants = [];
-                        restaurantsSnapshot.forEach((doc) => {
-                            const restaurantData = doc.data();
-                            const restaurantId = doc.id;
-                            const voteCount = votesData[restaurantId] || 0;
-                            const isFavorite = favoriteIds.includes(restaurantId);
+                        let rawRestaurantsDataForCache = [];
 
-                            restaurants.push({
-                                id: restaurantId,
-                                ...restaurantData,
-                                votes: voteCount,
-                                favorite: isFavorite
+                        if (usingCache && Array.isArray(restaurantsSnapshotOrData)) {
+                            restaurantsSnapshotOrData.forEach(restaurantDataFromCache => {
+                                const restaurantId = restaurantDataFromCache.id;
+                                const voteCount = votesData[restaurantId] || 0;
+                                const isFavorite = localFavoriteIds.includes(restaurantId);
+
+                                restaurants.push({
+                                    ...restaurantDataFromCache,
+                                    votes: voteCount,
+                                    favorite: isFavorite
+                                });
                             });
-                        });
+                        } else if ((!usingCache || forceRefresh) && restaurantsSnapshotOrData.forEach) {
+                            restaurantsSnapshotOrData.forEach((doc) => {
+                                const restaurantData = doc.data();
+                                const restaurantId = doc.id;
+                                rawRestaurantsDataForCache.push({ id: restaurantId, ...restaurantData });
+
+                                const voteCount = votesData[restaurantId] || 0;
+                                const isFavorite = localFavoriteIds.includes(restaurantId);
+
+                                restaurants.push({
+                                    id: restaurantId,
+                                    ...restaurantData,
+                                    votes: voteCount,
+                                    favorite: isFavorite
+                                });
+                            });
+
+                            if (!usingCache || forceRefresh) {
+                                try {
+                                    localStorage.setItem(CACHE_KEY_RESTAURANTS, JSON.stringify({
+                                        timestamp: Date.now(),
+                                        data: rawRestaurantsDataForCache
+                                    }));
+                                    console.log('Restaurant data saved to cache.');
+                                } catch (e) {
+                                    console.error('Error saving restaurants to localStorage:', e);
+                                }
+                            }
+                        } else {
+                            console.error('Unexpected data format for restaurants:', restaurantsSnapshotOrData);
+                            throw new Error('Failed to process restaurant data.');
+                        }
 
                         filteredRestaurants = [...restaurants];
                         applyFiltersAndSort();
@@ -776,7 +852,7 @@
                            addRestaurantMarkers();
                         }
 
-                        showToast('Data loaded successfully');
+                        showToast(forceRefresh ? 'Data fetched from Firebase and cache updated!' : (usingCache ? 'Data loaded from cache' : 'Data loaded successfully from Firebase'));
                     })
                     .catch((error) => {
                         console.error('Error loading data:', error);
@@ -784,6 +860,9 @@
                             '<div class="no-results">Error loading data. Please try again later.</div>';
                         if (document.getElementById('map-container')) {
                             document.getElementById('map-container').innerHTML = '<div class="no-results">Error loading map data.</div>';
+                        }
+                        if (forceRefresh) {
+                            showToast('Error fetching data from Firebase. Cache was cleared.', 5000);
                         }
                     });
             }
@@ -1203,28 +1282,52 @@
                     return;
                 }
 
-                const favoritesDocRef = db.collection('favorites').doc('favorites');
-                let currentFavoriteStatus = false;
+                // HAE localFavoriteIds localStorage:sta
+                let localFavoriteIds = [];
+                try {
+                    const storedFavorites = localStorage.getItem('favoriteRestaurantIds');
+                    if (storedFavorites) {
+                        localFavoriteIds = JSON.parse(storedFavorites);
+                    }
+                } catch (e) {
+                    console.error('Error reading favorites from localStorage:', e);
+                    // Jos lukuvirhe, alustetaan tyhjänä, jotta toiminta voi jatkua
+                    localFavoriteIds = [];
+                }
 
                 const restaurantIndex = restaurants.findIndex(r => r.id === restaurantId);
+                let currentFavoriteStatus = false;
+
                 if (restaurantIndex !== -1) {
                     currentFavoriteStatus = restaurants[restaurantIndex].favorite === true;
                 } else {
-                    console.warn(`Restaurant with ID ${restaurantId} not found in local 'restaurants' array for status check.`);
-                    currentFavoriteStatus = buttonElement.classList.contains('active');
+                    // Fallback, jos ravintolaa ei löydy heti 'restaurants' listasta (ei pitäisi tapahtua normaalisti)
+                    // Tarkistetaan suoraan localFavoriteIds-listasta tai napin tilasta
+                    console.warn(`Restaurant with ID ${restaurantId} not found in local 'restaurants' array for status check. Checking localStorage.`);
+                    currentFavoriteStatus = localFavoriteIds.includes(restaurantId);
+                    // Varmuuden vuoksi, jos buttonElement on annettu ja se on luotettavampi tässä harvinaisessa tilanteessa
+                    if (buttonElement) {
+                        currentFavoriteStatus = buttonElement.classList.contains('active');
+                    }
                 }
 
                 const newFavoriteStatus = !currentFavoriteStatus;
-                const updateAction = newFavoriteStatus
-                    ? firebase.firestore.FieldValue.arrayUnion(restaurantId)
-                    : firebase.firestore.FieldValue.arrayRemove(restaurantId);
 
-                favoritesDocRef.update({
-                    favorites: updateAction
-                })
-                .then(() => {
+                // PÄIVITÄ localFavoriteIds
+                if (newFavoriteStatus) {
+                    if (!localFavoriteIds.includes(restaurantId)) {
+                        localFavoriteIds.push(restaurantId);
+                    }
+                } else {
+                    localFavoriteIds = localFavoriteIds.filter(id => id !== restaurantId);
+                }
+
+                // TALLENNA localStorage:en ja päivitä UI
+                try {
+                    localStorage.setItem('favoriteRestaurantIds', JSON.stringify(localFavoriteIds));
                     showToast(newFavoriteStatus ? 'Added to favorites!' : 'Removed from favorites!');
 
+                    // Päivitä ravintoladata muistissa
                     if (restaurantIndex !== -1) {
                         restaurants[restaurantIndex].favorite = newFavoriteStatus;
                         const filteredIndex = filteredRestaurants.findIndex(r => r.id === restaurantId);
@@ -1232,9 +1335,18 @@
                             filteredRestaurants[filteredIndex].favorite = newFavoriteStatus;
                         }
                     } else {
-                        console.warn(`Could not update local data cache for ${restaurantId} as it was not found.`);
+                        // Jos ravintolaa ei löytynyt 'restaurants' listasta, mutta tilaa muutettiin,
+                        // yritetään päivittää se 'filteredRestaurants' listassa, jos se on siellä.
+                        const filteredIndexOnly = filteredRestaurants.findIndex(r => r.id === restaurantId);
+                        if (filteredIndexOnly !== -1) {
+                            filteredRestaurants[filteredIndexOnly].favorite = newFavoriteStatus;
+                            console.log(`Updated favorite status for ${restaurantId} in filteredRestaurants only.`);
+                        } else {
+                            console.warn(`Could not update local data cache for ${restaurantId} as it was not found in 'restaurants' or 'filteredRestaurants'. UI might rely on direct localStorage check on next load.`);
+                        }
                     }
 
+                    // Päivitä napin ja kortin ulkoasu
                     const cardElement = buttonElement.closest('.restaurant-card');
                     const iconElement = buttonElement.querySelector('i');
 
@@ -1249,16 +1361,35 @@
                             buttonElement.classList.remove('active');
                             iconElement.classList.remove('fas');
                             iconElement.classList.add('far');
+                            // Jos suosikit-suodatin on päällä ja suosikki poistetaan,
+                            // päivitä näkymä, jotta ravintola poistuu listalta.
+                            if (currentFilter === 'favorites') {
+                                applyFiltersAndSort();
+                                renderRestaurants();
+                            }
                         }
                     } else {
-                        console.warn("Could not find card or icon element for direct UI update.");
+                        console.warn("Could not find card or icon element for direct UI update after favorite toggle.");
+                        // Vaikka UI-elementtejä ei löytyisi suoraan, data on päivitetty localStorageen ja muistiin.
+                        // Seuraava renderRestaurants() -kutsu korjaa UI:n.
+                        // Jos suosikit-suodatin on aktiivinen, varmistetaan päivitys.
+                         if (currentFilter === 'favorites' && !newFavoriteStatus) {
+                            applyFiltersAndSort();
+                            renderRestaurants();
+                        }
                     }
-
-                })
-                .catch((error) => {
-                    console.error("Error updating favorite status:", error);
+                } catch (e) {
+                    console.error("Error updating favorite status in localStorage:", e);
                     showToast("Error updating favorite status. Please try again.", 5000);
-                });
+                    // Yritä palauttaa tila muistissa, jos tallennus localStorageen epäonnistui (valinnainen)
+                    if (restaurantIndex !== -1) {
+                         restaurants[restaurantIndex].favorite = currentFavoriteStatus; // Palauta vanha tila
+                         const filteredIndex = filteredRestaurants.findIndex(r => r.id === restaurantId);
+                         if (filteredIndex !== -1) {
+                            filteredRestaurants[filteredIndex].favorite = currentFavoriteStatus;
+                         }
+                    }
+                }
             };
 
             document.getElementById('search-input').addEventListener('input', function(e) {
@@ -1316,16 +1447,20 @@
                 }
             });
 
-            // Event listener for the "Manage Links" button
             document.getElementById('toggle-link-view').addEventListener('click', function() {
                 if (currentView === 'link') {
-                    showView(previousView); // Revert to the view that was active before link view
+                    showView(previousView);
                 } else {
+                    previousView = currentView;
                     showView('link');
                 }
             });
 
-            // --- New Functions for Custom Config Management ---
+            document.getElementById('force-fetch-btn').addEventListener('click', function() {
+                showToast('Fetching latest data from server...', 2000);
+                fetchRestaurants(true);
+            });
+
             function renderCustomConfigsView() {
                 const listContainer = document.getElementById('custom-configs-list');
                 listContainer.innerHTML = '<p>Loading custom configurations...</p>';
@@ -1498,7 +1633,6 @@
                     });
             }
 
-            // Event listener for the "Manage Custom" button
             document.getElementById('toggle-custom-view').addEventListener('click', function() {
                 if (currentView === 'custom') {
                     showView(previousView); 
@@ -1506,8 +1640,6 @@
                     showView('custom');
                 }
             });
-            // --- End of New Functions for Custom Config Management ---
-
         });
     </script>
 </body>
